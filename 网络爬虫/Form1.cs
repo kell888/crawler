@@ -37,7 +37,7 @@ namespace 网络爬虫
             numericUpDown1.Value = Convert.ToInt32(Common.GetAppSettingConfig("listIndexFrom"));
             numericUpDown2.Value = Convert.ToInt32(Common.GetAppSettingConfig("listIndexTo"));
             textBox2.Text = Common.GetAppSettingConfig("picDir");
-            textBox3.Text = Common.GetAppSettingConfig("mailDir");
+            textBox3.Text = Common.GetAppSettingConfig("mailFile");
             textBox4.Text = Common.GetAppSettingConfig("linkDir");
             textBox5.Text = Common.GetAppSettingConfig("scriptDir");
             textBox6.Text = Common.GetAppSettingConfig("picReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
@@ -135,6 +135,29 @@ namespace 网络爬虫
                 if (!unload.ContainsKey(baseUrl))
                     unload.Add(baseUrl, 0);
             }
+            string patternPic = textBox6.Text.Trim();
+            string patternMail = textBox7.Text.Trim();
+            string patternLink = textBox8.Text.Trim();
+            string patternScript = textBox9.Text.Trim();
+            string picDir = textBox2.Text.Trim();
+            string mailFile = textBox3.Text.Trim();
+            string linkDir = textBox4.Text.Trim();
+            string scriptDir = textBox5.Text.Trim();
+                if (!Directory.Exists(picDir))
+                    Directory.CreateDirectory(picDir);
+            if (!Directory.Exists(linkDir))
+                Directory.CreateDirectory(linkDir);
+            if (!Directory.Exists(scriptDir))
+                Directory.CreateDirectory(scriptDir);
+                if (!File.Exists(mailFile))
+                {
+                    StreamWriter sw = File.CreateText(mailFile);
+                    sw.Close();
+                }
+                else
+                {
+                    File.WriteAllText(mailFile, "", Encoding.UTF8);
+                }
             while (unload.Count > 0)
             {
                 signal.WaitOne();
@@ -173,10 +196,10 @@ namespace 网络爬虫
                     string html = client.DownloadString(url);
                     if (!string.IsNullOrEmpty(html))
                     {
-                        AnalysisHtml(url, html, "pic");
-                        AnalysisHtml(url, html, "mail");
-                        AnalysisHtml(url, html, "link");
-                        AnalysisHtml(url, html, "script");
+                        AnalysisHtml(url, html, patternPic, picDir);
+                        AnalysisHtml(url, html, patternMail, mailFile, true);
+                        AnalysisHtml(url, html, patternLink, linkDir);
+                        AnalysisHtml(url, html, patternScript, scriptDir);
                         msg = "爬取[" + url + "]完毕";
                         ShowMsg(msg);
                         AddItem(msg);
@@ -200,13 +223,17 @@ namespace 网络爬虫
                 }
                 catch (WebException we)
                 {
-                    msg = "下载[" + url + "]时出现异常：" + we.Message;
+                    msg = "抓取[" + url + "]时出现异常：" + we.Message;
                     ShowMsg(msg);
                     AddItem(msg);
                 }
             }
             if (download != 0)
+            {
                 download = 3;//下载完毕
+                ShowMsg("爬取结束");
+                AddItem("爬取结束");
+            }
             if (this.InvokeRequired)
             {
                 this.Invoke(new Action(delegate
@@ -268,29 +295,9 @@ namespace 网络爬虫
             }
         }
 
-        private void AnalysisHtml(string url, string html, string type)
+        private void AnalysisHtml(string url, string html, string pattern, string dir, bool isFile = false)
         {
-            string pattern = "";
-            string dir = "";
-            switch (type.ToLower())
-            {
-                case "pic":
-                    pattern = textBox6.Text.Trim();
-                    dir = textBox2.Text.Trim();
-                    break;
-                case "mail":
-                    pattern = textBox7.Text.Trim();
-                    dir = textBox3.Text.Trim();
-                    break;
-                case "link":
-                    pattern = textBox8.Text.Trim();
-                    dir = textBox4.Text.Trim();
-                    break;
-                case "script":
-                    pattern = textBox9.Text.Trim();
-                    dir = textBox5.Text.Trim();
-                    break;
-            }
+            List<string> uris = new List<string>();
             ShowMsg("开始分析网页[" + url + "]");
             AddItem("开始分析网页[" + url + "]");
             Regex re = new Regex(pattern);
@@ -301,13 +308,16 @@ namespace 网络爬虫
                     break;
                 if (match.Success)
                 {
-                    ShowMsg("分析网页[" + url + "]成功，正在下载链接资源");
                     string uri = match.Value;
                     if (pattern.Contains("Url"))
                         uri = match.Groups["Url"].Value;
-                    Download(uri, dir);
-                    ShowMsg("下载链接资源[" + uri + "]完毕");
-                    AddItem("下载链接资源[" + uri + "]完毕");
+                    if (!uris.Contains(uri))
+                    {
+                        ShowMsg("分析网页[" + url + "]成功，正在下载链接资源[" + uri + "]");
+                        Download(uri, dir, isFile);
+                        ShowMsg("下载链接资源[" + uri + "]完毕");
+                        AddItem("下载链接资源[" + uri + "]完毕");
+                    }
                 }
                 else
                 {
@@ -366,16 +376,14 @@ namespace 网络爬虫
             }
         }
 
-        private void Download(string uri, string dir)
+        private void Download(string uri, string dir, bool isFile = false)
         {
-            if (File.Exists(dir))
+            if (isFile)
             {
-                File.AppendAllText(dir, Environment.NewLine + uri, Encoding.UTF8);
+                File.AppendAllText(dir, uri + Environment.NewLine, Encoding.UTF8);
             }
             else
             {
-                if (!Directory.Exists(dir))
-                    Directory.CreateDirectory(dir);
                 if (!dir.EndsWith("\\"))
                     dir += "\\";
                 if (!string.IsNullOrEmpty(uri))
@@ -515,7 +523,7 @@ namespace 网络爬虫
                 Common.SaveAppSettingConfig("listIndexFrom", numericUpDown1.Value.ToString());
                 Common.SaveAppSettingConfig("listIndexTo", numericUpDown2.Value.ToString());
                 Common.SaveAppSettingConfig("picDir", textBox2.Text);
-                Common.SaveAppSettingConfig("mailDir", textBox3.Text);
+                Common.SaveAppSettingConfig("mailFile", textBox3.Text);
                 Common.SaveAppSettingConfig("linkDir", textBox4.Text);
                 Common.SaveAppSettingConfig("scriptDir", textBox5.Text);
                 Common.SaveAppSettingConfig("picReg", textBox6.Text.Trim().Replace("\"", "#").Replace("&", "@").Replace("<", ","));
@@ -696,14 +704,11 @@ namespace 网络爬虫
             {
                 if (match.Success)
                 {
+                    string result = match.Value;
                     if (pattern.Contains("Url"))
-                        results.Add(match.Groups["Url"].Value);
-                    else
-                        results.Add(match.Value);
-                    //Regex regImg = new Regex(@"<img\b[^<>]*?\bsrc[\s\t\r\n]*=[\s\t\r\n]*[""']?[\s\t\r\n]*(?<imgUrl>[^\s\t\r\n""'<>]*)[^<>]*?/?[\s\t\r\n]*>", RegexOptions.IgnoreCase);
-                    //Match mat = regImg.Match(match.Value);
-                    //if (mat.Success)
-                    //    results.Add(mat.Groups["imgUrl"].Value);
+                        result = match.Groups["Url"].Value;
+                    if (!results.Contains(result))
+                        results.Add(result);
                 }
             }
             //Winista.Text.HtmlParser.Lex.Lexer lexer = new Winista.Text.HtmlParser.Lex.Lexer(html);
@@ -859,6 +864,7 @@ namespace 网络爬虫
                 }
                 list.Sort();
                 File.WriteAllLines(saveFileDialog1.FileName, list, Encoding.UTF8);
+                MessageBox.Show("保存成功！");
             }
         }
 
@@ -879,6 +885,7 @@ namespace 网络爬虫
                             unload.Add(url, level);
                     }
                 }
+                MessageBox.Show("载入成功！");
             }
         }
 
@@ -902,7 +909,7 @@ namespace 网络爬虫
             }
             catch (Exception ex)
             {
-                MessageBox.Show("打开目录时出错：" + ex.Message);
+                MessageBox.Show("打开文件时出错：" + ex.Message);
             }
         }
 
@@ -943,7 +950,7 @@ namespace 网络爬虫
                 ini.WriteItem("appSettings", "listIndexFrom", numericUpDown1.Value.ToString());
                 ini.WriteItem("appSettings", "listIndexTo", numericUpDown2.Value.ToString());
                 ini.WriteItem("appSettings", "picDir", textBox2.Text);
-                ini.WriteItem("appSettings", "mailDir", textBox3.Text);
+                ini.WriteItem("appSettings", "mailFile", textBox3.Text);
                 ini.WriteItem("appSettings", "linkDir", textBox4.Text);
                 ini.WriteItem("appSettings", "scriptDir", textBox5.Text);
                 ini.WriteItem("appSettings", "picReg", textBox6.Text.Trim().Replace("\"", "#").Replace("&", "@").Replace("<", ","));
@@ -967,7 +974,7 @@ namespace 网络爬虫
                  numericUpDown1.Value = Convert.ToInt32(ini.ReadItemValue("appSettings", "listIndexFrom"));
                  numericUpDown2.Value = Convert.ToInt32(ini.ReadItemValue("appSettings", "listIndexTo"));
                  textBox2.Text = ini.ReadItemValue("appSettings", "picDir");
-                 textBox3.Text = ini.ReadItemValue("appSettings", "mailDir");
+                 textBox3.Text = ini.ReadItemValue("appSettings", "mailFile");
                  textBox4.Text = ini.ReadItemValue("appSettings", "linkDir");
                  textBox5.Text = ini.ReadItemValue("appSettings", "scriptDir");
                  textBox6.Text = ini.ReadItemValue("appSettings", "picReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
