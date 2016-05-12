@@ -1,0 +1,10 @@
+E:\soft\网络爬虫\网络爬虫\bin\Release\网络爬虫.exe.config
+E:\soft\网络爬虫\网络爬虫\bin\Release\网络爬虫.exe
+E:\soft\网络爬虫\网络爬虫\bin\Release\网络爬虫.pdb
+E:\soft\网络爬虫\网络爬虫\bin\Release\Winista.HtmlParser.dll
+E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.Form1.resources
+E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.Form2.resources
+E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.Properties.Resources.resources
+E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.csproj.GenerateResource.Cache
+E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.exe
+E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.pdb

@@ -21,7 +21,7 @@ namespace 网络爬虫
             InitializeComponent();
         }
 
-        public const string PAGEINDEX = "{PAGEINDEX}";
+        public const string PAGEINDEX = "{PAGEINDEX}";        
         Dictionary<string, int> unload = new Dictionary<string, int>();
         Dictionary<string, int> loaded = new Dictionary<string, int>();
         string baseUrl;
@@ -44,15 +44,114 @@ namespace 网络爬虫
             textBox7.Text = Common.GetAppSettingConfig("mailReg");
             textBox8.Text = Common.GetAppSettingConfig("linkReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
             textBox9.Text = Common.GetAppSettingConfig("scriptReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
+            string encoder = Common.GetAppSettingConfig("encoding");
+            if (!string.IsNullOrEmpty(encoder))
+                comboBox1.Text = encoder;
+            else
+                comboBox1.SelectedIndex = 0;
         }
-
+        Thread thr;
         private void button1_Click(object sender, EventArgs e)
         {
-            ThreadPool.QueueUserWorkItem(
-                delegate
+            if (download == -1)
+            {
+                ShowMsg("开始爬取");
+                AddItem("开始爬取");
+                download = 1;//爬取进行中
+                if (this.InvokeRequired)
                 {
-                    Start();
-                });
+                    this.Invoke(new Action(delegate
+                    {
+                        button1.Enabled = false;
+                        button2.Enabled = button3.Enabled = true;
+                        baseUrl = textBox1.Text.Trim();
+                        button13.Enabled = button14.Enabled = false;
+                    }));
+                }
+                else
+                {
+                    button1.Enabled = false;
+                    button2.Enabled = button3.Enabled = true;
+                    baseUrl = textBox1.Text.Trim();
+                    button13.Enabled = button14.Enabled = false;
+                }
+                if (!baseUrl.EndsWith("/"))
+                    baseUrl += "/";
+                if (this.UserList)
+                {
+                    List<string> baseUrls = new List<string>();
+                    string listVar = ListVar;
+                    if (listVar != "" && listVar.Contains(PAGEINDEX))
+                    {
+                        int start = (int)numericUpDown1.Value;
+                        int end = (int)numericUpDown2.Value;
+                        if (start > end)
+                        {
+                            int tmp = start;
+                            start = end;
+                            end = tmp;
+                        }
+                        for (int i = start; i <= end; i++)
+                        {
+                            baseUrls.Add(baseUrl + listVar.Replace(PAGEINDEX, i.ToString()));
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("请填写合法的列表变量！" + Environment.NewLine + "类似【page-{PAGEINDEX}】的格式");
+                    }
+                    foreach (string URL in baseUrls)
+                    {
+                        string u = URL;
+                        if (!u.Contains("://"))
+                            u = "http://" + u;
+                        if (!unload.ContainsKey(u))
+                        {
+                            unload.Add(u, 0);
+                            RefreshUnLoadList();
+                        }
+                    }
+                }
+                else
+                {
+                    if (!baseUrl.Contains("://"))
+                        baseUrl = "http://" + baseUrl;
+                    if (!unload.ContainsKey(baseUrl))
+                    {
+                        unload.Add(baseUrl, 0);
+                        RefreshUnLoadList();
+                    }
+                }
+                thr = new Thread(new ThreadStart(Start));
+                thr.Start();
+            }
+            else
+            {
+                ShowMsg("继续爬取");
+                AddItem("继续爬取");
+                download = 1;//爬取进行中
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(new Action(delegate
+                    {
+                        button1.Enabled = false;
+                        button2.Enabled = button3.Enabled = true;
+                        button13.Enabled = button14.Enabled = false;
+                    }));
+                }
+                else
+                {
+                    button1.Enabled = false;
+                    button2.Enabled = button3.Enabled = true;
+                    button13.Enabled = button14.Enabled = false;
+                }
+                thr.Resume();
+            }
+            //ThreadPool.QueueUserWorkItem(
+            //    delegate
+            //    {
+            //        Start();
+            //    });
         }
 
         private bool UserList
@@ -72,69 +171,8 @@ namespace 网络爬虫
 
         private void Start()
         {
-            signal.Set();
-            ShowMsg("开始爬取");
-            AddItem("开始爬取");
-            download = 1;//下载进行中
             string msg = "";
-            if (this.InvokeRequired)
-            {
-                this.Invoke(new Action(delegate
-                {
-                    button1.Enabled = false;
-                    button2.Enabled = button3.Enabled = true;
-                    baseUrl = textBox1.Text.Trim();
-                    button13.Enabled = button14.Enabled = false;
-                }));
-            }
-            else
-            {
-                button1.Enabled = false;
-                button2.Enabled = button3.Enabled = true;
-                baseUrl = textBox1.Text.Trim();
-                button13.Enabled = button14.Enabled = false;
-            }
-            if (!baseUrl.EndsWith("/"))
-                baseUrl += "/";
-            if (this.UserList)
-            {
-                List<string> baseUrls = new List<string>();
-                string listVar = ListVar;
-                if (listVar != "" && listVar.Contains(PAGEINDEX))
-                {
-                    int start = (int)numericUpDown1.Value;
-                    int end = (int)numericUpDown2.Value;
-                    if (start > end)
-                    {
-                        int tmp = start;
-                        start = end;
-                        end = tmp;
-                    }
-                    for (int i = start; i <= end; i++)
-                    {
-                        baseUrls.Add(baseUrl + listVar.Replace(PAGEINDEX, i.ToString()));
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("请填写合法的列表变量！" + Environment.NewLine + "类似【page-{PAGEINDEX}】的格式");
-                }
-                foreach (string URL in baseUrls)
-                {
-                    string u = URL;
-                    if (!u.Contains("://"))
-                        u = "http://" + u;
-                    if (!unload.ContainsKey(u))
-                        unload.Add(u, 0);
-                }
-            }
-            else
-            {
-                if (!baseUrl.Contains("://"))
-                    baseUrl = "http://" + baseUrl;
-                if (!unload.ContainsKey(baseUrl))
-                    unload.Add(baseUrl, 0);
-            }
+            signal.Set();
             string patternPic = textBox6.Text.Trim();
             string patternMail = textBox7.Text.Trim();
             string patternLink = textBox8.Text.Trim();
@@ -143,21 +181,21 @@ namespace 网络爬虫
             string mailFile = textBox3.Text.Trim();
             string linkDir = textBox4.Text.Trim();
             string scriptDir = textBox5.Text.Trim();
-                if (!Directory.Exists(picDir))
-                    Directory.CreateDirectory(picDir);
+            if (!Directory.Exists(picDir))
+                Directory.CreateDirectory(picDir);
             if (!Directory.Exists(linkDir))
                 Directory.CreateDirectory(linkDir);
             if (!Directory.Exists(scriptDir))
                 Directory.CreateDirectory(scriptDir);
-                if (!File.Exists(mailFile))
-                {
-                    StreamWriter sw = File.CreateText(mailFile);
-                    sw.Close();
-                }
-                else
-                {
-                    File.WriteAllText(mailFile, "", Encoding.UTF8);
-                }
+            if (!File.Exists(mailFile))
+            {
+                StreamWriter sw = File.CreateText(mailFile);
+                sw.Close();
+            }
+            else
+            {
+                File.WriteAllText(mailFile, "", Encoding.UTF8);
+            }
             while (unload.Count > 0)
             {
                 signal.WaitOne();
@@ -169,29 +207,19 @@ namespace 网络爬虫
                 {
                     loaded.Add(url, depth);
                     unload.Remove(url);
+                    RefreshUnLoadList();
                 }
                 msg = "正在下载[" + url + "]";
                 ShowMsg(msg);
                 AddItem(msg);
 
-                //HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
-                //req.Method = "GET";
-                //req.Accept = "text/html";
-                //req.UserAgent = "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)";
-
                 try
                 {
-                    //string html = null;
-                    //HttpWebResponse res = (HttpWebResponse)req.GetResponse();
-                    //if (res.StatusCode == HttpStatusCode.OK)
-                    //{
-                    //    using (StreamReader reader = new StreamReader(res.GetResponseStream()))
-                    //    {
-                    //        html = reader.ReadToEnd();
                     WebClient client = new WebClient();
+                    client.Credentials = CredentialCache.DefaultCredentials;
                     client.Headers.Add(HttpRequestHeader.UserAgent, "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0; QQWubi 133; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0; CIBA; InfoPath.2)");
-                    client.Encoding = Encoding.UTF8;//.GetEncoding("GB18030");
-                    client.Headers.Add(HttpRequestHeader.ContentEncoding, "UTF8");//"GB18030");
+                    client.Encoding = Encoding.GetEncoding(CurrentEncoder);
+                    client.Headers.Add(HttpRequestHeader.ContentEncoding, CurrentEncoder);//"GB18030");
                     client.Headers.Add(HttpRequestHeader.Accept, "text/html");
                     string html = client.DownloadString(url);
                     if (!string.IsNullOrEmpty(html))
@@ -210,16 +238,8 @@ namespace 网络爬虫
                         ShowMsg(msg);
                         AddItem(msg);
                     }
-                    //     }
                     string[] links = GetLinks(html);
                     AddUrls(links, depth + 1, baseUrl, unload, loaded);
-                    //}
-                    //else
-                    //{
-                    //    msg = "下载[" + url + "]失败！";
-                    //    ShowMsg(msg);
-                    //    AddItem(msg);
-                    //}
                 }
                 catch (WebException we)
                 {
@@ -255,11 +275,7 @@ namespace 网络爬虫
         {
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action(
-                    delegate {
-                    toolStripStatusLabel1.Text = msg;
-                    statusStrip1.Refresh();
-                }));
+                this.Invoke(new Action<string>(ShowMsg), msg);
             }
             else
             {
@@ -274,7 +290,7 @@ namespace 网络爬虫
             {
                 if (this.InvokeRequired)
                 {
-                    return (string)this.Invoke(new Func<string>(delegate { return textBox10.Text.Trim(); }));
+                    return (string)this.Invoke(new Func<string>(delegate { return ListVar; }));
                 }
                 else
                 {
@@ -287,11 +303,12 @@ namespace 网络爬虫
         {
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action<string>(msg => listBox1.Items.Add(msg)), item);
+                this.Invoke(new Action<string>(AddItem), item);
             }
             else
             {
                 listBox1.Items.Add(item);
+                listBox1.SelectedIndex = listBox1.Items.Count - 1;
             }
         }
 
@@ -334,47 +351,47 @@ namespace 网络爬虫
             //}
         }
 
-        private void ParseHtml(Winista.Text.HtmlParser.INode htmlNode, bool siblingRequired, string dir)
-        {
-            if (htmlNode is Winista.Text.HtmlParser.ITag)
-            {
-                Winista.Text.HtmlParser.ITag tag = (htmlNode as Winista.Text.HtmlParser.ITag);
-                if (!tag.IsEndTag())
-                {
-                    string nodeString = tag.TagName;
-                    if (tag.Attributes != null && tag.Attributes.Count > 0)
-                    {
-                        if (tag.Attributes["ID"] != null)
-                        {
-                            nodeString = nodeString + " { id=\"" + tag.Attributes["ID"].ToString() + "\" }";
-                        }
-                        if (tag.Attributes["HREF"] != null)
-                        {
-                            nodeString = nodeString + " { href=\"" + tag.Attributes["HREF"].ToString() + "\" }";
-                        }
-                    }
-                    Download(nodeString, dir);
-                }
-            }
+        //private void ParseHtml(Winista.Text.HtmlParser.INode htmlNode, bool siblingRequired, string dir)
+        //{
+        //    if (htmlNode is Winista.Text.HtmlParser.ITag)
+        //    {
+        //        Winista.Text.HtmlParser.ITag tag = (htmlNode as Winista.Text.HtmlParser.ITag);
+        //        if (!tag.IsEndTag())
+        //        {
+        //            string nodeString = tag.TagName;
+        //            if (tag.Attributes != null && tag.Attributes.Count > 0)
+        //            {
+        //                if (tag.Attributes["ID"] != null)
+        //                {
+        //                    nodeString = nodeString + " { id=\"" + tag.Attributes["ID"].ToString() + "\" }";
+        //                }
+        //                if (tag.Attributes["HREF"] != null)
+        //                {
+        //                    nodeString = nodeString + " { href=\"" + tag.Attributes["HREF"].ToString() + "\" }";
+        //                }
+        //            }
+        //            Download(nodeString, dir);
+        //        }
+        //    }
 
-            //获取节点间的内容  
-            if (htmlNode.Children != null && htmlNode.Children.Count > 0)
-            {
-                ParseHtml(htmlNode.FirstChild, true, dir);
-                Download(htmlNode.FirstChild.GetText(), dir);
-            }
+        //    //获取节点间的内容  
+        //    if (htmlNode.Children != null && htmlNode.Children.Count > 0)
+        //    {
+        //        ParseHtml(htmlNode.FirstChild, true, dir);
+        //        Download(htmlNode.FirstChild.GetText(), dir);
+        //    }
 
-            //the sibling nodes
-            if (siblingRequired)
-            {
-                Winista.Text.HtmlParser.INode sibling = htmlNode.NextSibling;
-                while (sibling != null)
-                {
-                    ParseHtml(sibling, false, dir);
-                    sibling = sibling.NextSibling;
-                }
-            }
-        }
+        //    //the sibling nodes
+        //    if (siblingRequired)
+        //    {
+        //        Winista.Text.HtmlParser.INode sibling = htmlNode.NextSibling;
+        //        while (sibling != null)
+        //        {
+        //            ParseHtml(sibling, false, dir);
+        //            sibling = sibling.NextSibling;
+        //        }
+        //    }
+        //}
 
         private void Download(string uri, string dir, bool isFile = false)
         {
@@ -397,6 +414,7 @@ namespace 网络爬虫
                             filename = DateTime.Now.ToString("yyyyMMddHHmmssfff") + ext;
                         }
                         WebClient client = new WebClient();
+                        client.Credentials = CredentialCache.DefaultCredentials;
                         client.Headers.Add(HttpRequestHeader.UserAgent, "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0; QQWubi 133; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0; CIBA; InfoPath.2)");
                         client.DownloadFile(uri, dir + filename);
                         //HttpWebRequest req = (HttpWebRequest)WebRequest.Create(uri);
@@ -435,22 +453,28 @@ namespace 网络爬虫
 
         private void button2_Click(object sender, EventArgs e)
         {
+            thr.Suspend();
             signal.Reset();
             download = 2;//暂停
             button1.Enabled = true;
             button2.Enabled = false;
             button13.Enabled = button14.Enabled = true;
+            listBox1.Items.Add("暂停爬取");
+            listBox1.SelectedIndex = listBox1.Items.Count - 1;
             toolStripStatusLabel1.Text = "暂停爬取";
             statusStrip1.Refresh();
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
+            thr.Abort();
             signal.Set();
             download = 0;//停止
             button1.Enabled = true;
             button2.Enabled = button3.Enabled = false;
             button13.Enabled = button14.Enabled = true;
+            listBox1.Items.Add("停止爬取");
+            listBox1.SelectedIndex = listBox1.Items.Count - 1;
             toolStripStatusLabel1.Text = "停止爬取";
             statusStrip1.Refresh();
         }
@@ -530,6 +554,7 @@ namespace 网络爬虫
                 Common.SaveAppSettingConfig("mailReg", textBox7.Text.Trim());
                 Common.SaveAppSettingConfig("linkReg", textBox8.Text.Trim().Replace("\"", "#").Replace("&", "@").Replace("<", ","));
                 Common.SaveAppSettingConfig("scriptReg", textBox9.Text.Trim().Replace("\"", "#").Replace("&", "@").Replace("<", ","));
+                Common.SaveAppSettingConfig("encoding", comboBox1.Text);
                 MessageBox.Show("设置保存成功！");
             }
             catch (Exception ex)
@@ -653,47 +678,47 @@ namespace 网络爬虫
             return BASEURL;
         }
 
-        private void ParseHtml(Winista.Text.HtmlParser.INode htmlNode, bool siblingRequired, ref List<string> results)
-        {
-            if (htmlNode is Winista.Text.HtmlParser.ITag)
-            {
-                Winista.Text.HtmlParser.ITag tag = (htmlNode as Winista.Text.HtmlParser.ITag);
-                if (!tag.IsEndTag())
-                {
-                    string nodeString = tag.TagName;
-                    if (tag.Attributes != null && tag.Attributes.Count > 0)
-                    {
-                        if (tag.Attributes["ID"] != null)
-                        {
-                            nodeString = nodeString + " { id=\"" + tag.Attributes["ID"].ToString() + "\" }";
-                        }
-                        if (tag.Attributes["HREF"] != null)
-                        {
-                            nodeString = nodeString + " { href=\"" + tag.Attributes["HREF"].ToString() + "\" }";
-                        }
-                    }
-                    results.Add(nodeString);
-                }
-            }
+        //private void ParseHtml(Winista.Text.HtmlParser.INode htmlNode, bool siblingRequired, ref List<string> results)
+        //{
+        //    if (htmlNode is Winista.Text.HtmlParser.ITag)
+        //    {
+        //        Winista.Text.HtmlParser.ITag tag = (htmlNode as Winista.Text.HtmlParser.ITag);
+        //        if (!tag.IsEndTag())
+        //        {
+        //            string nodeString = tag.TagName;
+        //            if (tag.Attributes != null && tag.Attributes.Count > 0)
+        //            {
+        //                if (tag.Attributes["ID"] != null)
+        //                {
+        //                    nodeString = nodeString + " { id=\"" + tag.Attributes["ID"].ToString() + "\" }";
+        //                }
+        //                if (tag.Attributes["HREF"] != null)
+        //                {
+        //                    nodeString = nodeString + " { href=\"" + tag.Attributes["HREF"].ToString() + "\" }";
+        //                }
+        //            }
+        //            results.Add(nodeString);
+        //        }
+        //    }
 
-            //获取节点间的内容  
-            if (htmlNode.Children != null && htmlNode.Children.Count > 0)
-            {
-                ParseHtml(htmlNode.FirstChild, true, ref results);
-                results.Add(htmlNode.FirstChild.GetText());
-            }
+        //    //获取节点间的内容  
+        //    if (htmlNode.Children != null && htmlNode.Children.Count > 0)
+        //    {
+        //        ParseHtml(htmlNode.FirstChild, true, ref results);
+        //        results.Add(htmlNode.FirstChild.GetText());
+        //    }
 
-            //the sibling nodes
-            if (siblingRequired)
-            {
-                Winista.Text.HtmlParser.INode sibling = htmlNode.NextSibling;
-                while (sibling != null)
-                {
-                    ParseHtml(sibling, false, ref results);
-                    sibling = sibling.NextSibling;
-                }
-            }
-        }
+        //    //the sibling nodes
+        //    if (siblingRequired)
+        //    {
+        //        Winista.Text.HtmlParser.INode sibling = htmlNode.NextSibling;
+        //        while (sibling != null)
+        //        {
+        //            ParseHtml(sibling, false, ref results);
+        //            sibling = sibling.NextSibling;
+        //        }
+        //    }
+        //}
 
         private List<string> GetResults(string pattern, string html)
         {
@@ -827,9 +852,10 @@ namespace 网络爬虫
             try
             {
                 WebClient client = new WebClient();
+                client.Credentials = CredentialCache.DefaultCredentials;
                 client.Headers.Add(HttpRequestHeader.UserAgent, "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0; QQWubi 133; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0; CIBA; InfoPath.2)");
-                client.Encoding = Encoding.UTF8;//.GetEncoding("GB18030");
-                client.Headers.Add(HttpRequestHeader.ContentEncoding, "UTF8");//"GB18030");
+                client.Encoding = Encoding.GetEncoding(CurrentEncoder);
+                client.Headers.Add(HttpRequestHeader.ContentEncoding, CurrentEncoder);//"GB18030");
                 client.Headers.Add(HttpRequestHeader.Accept, "text/html");
                 html = client.DownloadString(url);
                 //HttpWebResponse res = (HttpWebResponse)req.GetResponse();
@@ -882,10 +908,36 @@ namespace 网络爬虫
                         string url = line.Substring(split + 1);
                         int level = Convert.ToInt32(line.Substring(1, split - 1));
                         if (!unload.ContainsKey(url))
+                        {
                             unload.Add(url, level);
+                            RefreshUnLoadList();
+                        }
                     }
                 }
                 MessageBox.Show("载入成功！");
+            }
+        }
+
+        private void RefreshUnLoadList()
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(RefreshUnLoadList));
+            }
+            else
+            {
+                listBox2.Items.Clear();
+                List<string> list = new List<string>();
+                foreach (string url in unload.Keys)
+                {
+                    int level = Convert.ToInt32(unload[url]);
+                    list.Add("[" + level + "]" + url);
+                }
+                list.Sort();
+                foreach (string u in list)
+                {
+                    listBox2.Items.Add(u);
+                }
             }
         }
 
@@ -957,6 +1009,7 @@ namespace 网络爬虫
                 ini.WriteItem("appSettings", "mailReg", textBox7.Text.Trim());
                 ini.WriteItem("appSettings", "linkReg", textBox8.Text.Trim().Replace("\"", "#").Replace("&", "@").Replace("<", ","));
                 ini.WriteItem("appSettings", "scriptReg", textBox9.Text.Trim().Replace("\"", "#").Replace("&", "@").Replace("<", ","));
+                ini.WriteItem("appSettings", "encoding", comboBox1.Text);
                 MessageBox.Show("保存成功！");
             }
         }
@@ -967,21 +1020,43 @@ namespace 网络爬虫
             {
                 INI ini = new INI(openFileDialog3.FileName);
 
-                 numericUpDown3.Value = Convert.ToInt32(ini.ReadItemValue("appSettings", "depth"));
-                 textBox1.Text = baseUrl = ini.ReadItemValue("appSettings", "baseUrl");
-                 checkBox1.Checked = ini.ReadItemValue("appSettings", "list") == "1";
-                 textBox10.Text = ini.ReadItemValue("appSettings", "listVar");
-                 numericUpDown1.Value = Convert.ToInt32(ini.ReadItemValue("appSettings", "listIndexFrom"));
-                 numericUpDown2.Value = Convert.ToInt32(ini.ReadItemValue("appSettings", "listIndexTo"));
-                 textBox2.Text = ini.ReadItemValue("appSettings", "picDir");
-                 textBox3.Text = ini.ReadItemValue("appSettings", "mailFile");
-                 textBox4.Text = ini.ReadItemValue("appSettings", "linkDir");
-                 textBox5.Text = ini.ReadItemValue("appSettings", "scriptDir");
-                 textBox6.Text = ini.ReadItemValue("appSettings", "picReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
-                 textBox7.Text = ini.ReadItemValue("appSettings", "mailReg");
-                 textBox8.Text = ini.ReadItemValue("appSettings", "linkReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
-                 textBox9.Text = ini.ReadItemValue("appSettings", "scriptReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
-                 MessageBox.Show("载入成功！");
+                numericUpDown3.Value = Convert.ToInt32(ini.ReadItemValue("appSettings", "depth"));
+                textBox1.Text = baseUrl = ini.ReadItemValue("appSettings", "baseUrl");
+                checkBox1.Checked = ini.ReadItemValue("appSettings", "list") == "1";
+                textBox10.Text = ini.ReadItemValue("appSettings", "listVar");
+                numericUpDown1.Value = Convert.ToInt32(ini.ReadItemValue("appSettings", "listIndexFrom"));
+                numericUpDown2.Value = Convert.ToInt32(ini.ReadItemValue("appSettings", "listIndexTo"));
+                textBox2.Text = ini.ReadItemValue("appSettings", "picDir");
+                textBox3.Text = ini.ReadItemValue("appSettings", "mailFile");
+                textBox4.Text = ini.ReadItemValue("appSettings", "linkDir");
+                textBox5.Text = ini.ReadItemValue("appSettings", "scriptDir");
+                textBox6.Text = ini.ReadItemValue("appSettings", "picReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
+                textBox7.Text = ini.ReadItemValue("appSettings", "mailReg");
+                textBox8.Text = ini.ReadItemValue("appSettings", "linkReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
+                textBox9.Text = ini.ReadItemValue("appSettings", "scriptReg").Replace("#", "\"").Replace("@", "&").Replace(",", "<");
+                comboBox1.Text = ini.ReadItemValue("appSettings", "encoding");
+                MessageBox.Show("载入成功！");
+            }
+        }
+
+        private void textBox1_Leave(object sender, EventArgs e)
+        {
+            baseUrl = textBox1.Text.Trim();
+            comboBox1.Text = Common.GetEncoding(baseUrl);
+        }
+
+        public string CurrentEncoder
+        {
+            get
+            {
+                if (this.InvokeRequired)
+                {
+                    return this.Invoke(new Func<string>(delegate { return CurrentEncoder; })).ToString();
+                }
+                else
+                {
+                    return comboBox1.Text.Trim();
+                }
             }
         }
     }
