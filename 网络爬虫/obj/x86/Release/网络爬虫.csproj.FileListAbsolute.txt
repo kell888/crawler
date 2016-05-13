@@ -8,3 +8,6 @@ E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.Properties.Resour
 E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.csproj.GenerateResource.Cache
 E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.exe
 E:\soft\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.pdb
+F:\2016\网络爬虫\网络爬虫\bin\Release\网络爬虫.exe.config
+F:\2016\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.exe
+F:\2016\网络爬虫\网络爬虫\obj\x86\Release\网络爬虫.pdb

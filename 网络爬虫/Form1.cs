@@ -1059,5 +1059,14 @@ namespace 网络爬虫
                 }
             }
         }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (thr != null)
+            {
+                if (thr.ThreadState != System.Threading.ThreadState.Aborted)
+                    thr.Abort();
+            }
+        }
     }
 }
